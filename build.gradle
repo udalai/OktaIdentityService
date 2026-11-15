@@ -1,0 +1,173 @@
+plugins {
+    id 'org.springframework.boot' version '3.3.13'
+    id 'io.spring.dependency-management' version '1.1.6'
+    id 'com.github.ben-manes.versions' version '0.51.0'
+    id 'java'
+    id 'jacoco'
+    id 'pmd'
+}
+
+group = 'com.example.identity'
+version = '0.0.1-SNAPSHOT'
+description = 'OktaIdentityService'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+//configurations {
+//    compilOnly{
+//        extendsFrom annotationProcessor
+//    }
+//}
+
+repositories {
+    mavenCentral()
+}
+
+
+//Caused by: java.lang.ClassNotFoundException: javax.xml.bind.annotation.XmlElement
+/*
+This error happens because a transitive dependency (most likely com.okta.sdk or aws-secretsmanager-jdbc)
+pulls in the legacy jackson-module-jaxb-annotations library, which expects the removed Java EE javax.xml.bind API instead of
+Jakarta EE (jakarta.xml.bind) used by Spring Boot 3 and Java 17.
+
+Fix:
+Option 1: Exclude jackson-module-jaxb-annotations Globally (Recommended)
+
+ */
+configurations.configureEach {
+    exclude group: 'com.fasterxml.jackson.module', module: 'jackson-module-jaxb-annotations'
+}
+//Option 2: Add the Legacy javax.xml.bind:jaxb-api Dependency
+//dependencies { ##add this inside dependencies.
+//    implementation 'javax.xml.bind:jaxb-api:2.3.1'
+//    // ... your existing dependencies
+//}
+
+
+ext {
+    set('springCloudVersion', "2023.0.3")
+    set('springCloudAwsVersion', '3.1.1')
+}
+
+dependencies {
+ //If you don't want to type :3.3.13 on every Spring Boot dependency (and test dependency), add Gradle's native platform() BOM at the top of your dependencies block:
+//    implementation platform('org.springframework.boot:spring-boot-dependencies:3.3.13')
+//    annotationProcessor platform('org.springframework.boot:spring-boot-dependencies:3.3.13')
+//    testAnnotationProcessor platform('org.springframework.boot:spring-boot-dependencies:3.3.13')
+
+//    implementation 'com.umarica.uxp:api-security-util:3.1.+'
+//    implementation 'org.springframework.boot:spring-boot-starter'
+
+    implementation 'org.springframework.cloud:spring-cloud-starter:4.1.5'
+    implementation 'org.springframework.cloud:spring-cloud-commons:4.1.5'
+    implementation 'org.springframework.cloud:spring-cloud-context:4.1.5'
+
+    implementation 'org.springframework.cloud:spring-cloud-starter-openfeign:4.1.4'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator:3.3.13'
+
+    implementation 'org.springframework.boot:spring-boot-starter-security:3.3.13'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa:3.3.13'
+    implementation 'org.springframework.boot:spring-boot-starter-validation:3.3.13'
+    implementation 'org.springframework.boot:spring-boot-starter-web:3.3.13'
+
+    implementation 'io.awspring.cloud:spring-cloud-aws-starter-secrets-manager:3.1.1'
+
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'
+    implementation 'org.apache.commons:commons-lang3:3.18.0'
+
+    implementation 'com.okta.sdk:okta-sdk-api:16.0.0'
+    runtimeOnly 'com.okta.sdk:okta-sdk-impl:16.0.0'
+    runtimeOnly 'com.okta.sdk:okta-sdk-httpclient:8.2.5'
+
+    implementation 'com.amazonaws.secretsmanager:aws-secretsmanager-jdbc:2.0.2'
+//    implementation 'org.liquibase:liquibase-core:4.30.0'
+    runtimeOnly 'com.mysql:mysql-connector-j:9.3.0'
+
+    compileOnly 'org.projectlombok:lombok:1.18.36'
+    developmentOnly 'org.springframework.boot:spring-boot-devtools:3.3.13'
+    annotationProcessor 'org.projectlombok:lombok:1.18.36'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test:3.3.13'
+    testCompileOnly 'org.projectlombok:lombok:1.18.36'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.36'
+
+    testImplementation 'com.h2database:h2:2.3.232'
+    testImplementation 'org.mockito:mockito-inline:5.2.0'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+        mavenBom "io.awsspring.cloud:spring-cloud-aws-dependencies:${springCloudAwsVersion}"
+    }
+}
+
+pmd {
+    ignoreFailures = false
+    sourceSets = [sourceSets.main]
+    ruleSets = [
+            "java-basic",
+            "java-braces",
+            "java-clone",
+            "java-codesize",
+            "java-design",
+            "java-empty",
+            "javefinalizer",
+            "java-migrating",
+            "java-strictexception",
+            "java-strings",
+            "java-unnecessary",
+            "java-unusedcode"
+    ]
+}
+
+
+project.ext {
+    if(!project.hasProperty("archiveVersion")) {
+        archiveVersion = project.parent?.ext?.archiveVersion ?:'LOCAL'
+    }
+//    buildNumber = System.getevn('BUILD_NUMBER') ?: 'X'
+    buildNumber = System.getenv("BUILD_NUMBER") ?:'X'
+    archiveVersion = "${projectVersion}.${buildNumber}"
+    archiveName = "${projectName}-${archiveVersion}"
+    jarFileName= "${archiveName}.jar"
+    GIT_BRANCH = System.getenv('GIT_BRANCH') ?: 'develop'
+}
+
+springBoot {
+    buildInfo()
+}
+
+bootJar {
+    launchScript()
+    archiveFileName = jarFileName
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    reports {
+        xml.required = true
+        csv.required = false
+        html.outputLocation = layout.buildDirectory.dir('jacocoHtml')
+    }
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.0
+            }
+        }
+    }
+}
+
+check.dependsOn jacocoTestCoverageVerification

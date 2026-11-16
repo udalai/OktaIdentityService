@@ -1,0 +1,7 @@
+youtube tutorial for Okta
+https://www.youtube.com/watch?v=FCr-KgI0t7g&list=PLp9_34w5BYV0XtD6yok_FMDtcUdzZkj51&index=1
+
+#test help of identity service
+#read doc in GatewayService to know how actuator works
+http://localhost:11014/identity/actuator/health
+http://localhost:11014/identity/actuator
